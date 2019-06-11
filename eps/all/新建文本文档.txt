@@ -1,0 +1,13 @@
+*follower cdf
+[CDF Stats] 50%=13.00, 80%=57.00, 99%=763.00, 99.9%=6308.00
+Max: 50662671, Min: 0
+*following cdf
+[CDF Stats] 50%=171.00, 80%=920.00, 99%=4821.00, 99.9%=9937.00
+Max: 14998, Min: 0
+*aweme cdf
+[CDF Stats] 50%=1.00, 80%=19.00, 99%=2073.00, 99.9%=5058.00
+Max: 8792, Min: 0
+*favoriting cdf
+[CDF Stats] 50%=309.00, 80%=2560.00, 99%=19479.00, 99.9%=39052.00
+Max: 187512, Min: 0
+*followers followings relation
