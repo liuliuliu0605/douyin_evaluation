@@ -119,3 +119,5 @@ fig, ax = evaluation.draw_relation(followers, followings, weight,
                                     marker='o')
 fig.savefig(os.path.join(draw_dir, 'followers_followings' + TYPE))
 '''
+
+# video analysis
