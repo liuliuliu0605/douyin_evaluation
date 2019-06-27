@@ -3,3 +3,8 @@ __pycache__/
 dataset/
 venv/
 *.ppt
+*.eps
+*.png
+dataset_bak/
+tmp/
+

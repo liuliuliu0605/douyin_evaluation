@@ -1,3 +1,5 @@
+#-*- coding: utf-8 -*-
+
 from matplotlib import pyplot as plt
 import numpy as np
 import networkx as nx
@@ -7,11 +9,13 @@ from collections import Counter
 #from pymc3.diagnostics import geweke
 from util import geweke
 from matplotlib import colors
+from pylab import mpl
 
+zhfont= mpl.font_manager.FontProperties(fname='/usr/share/fonts/truetype/arphic/ukai.ttc')
 title_fontsize = 24
-label_fontsize = 20
-tick_fontsize = 18
-legend_fontsize = 18
+label_fontsize = 22
+tick_fontsize = 22
+legend_fontsize = 22
 figsize = (8, 6)
 linewidth = 2.0
 n_bins = 0
@@ -25,7 +29,7 @@ class Evaluation(object):
         #self.degree_sequence = sorted(dict(nx.degree(graph)).values(), reverse=True)  # degree sequence
 
     def draw_zscore(self, sequence=None, weights=None, fig_ax=None, base_line=False,
-                    legend_label=None, x_label="# for users",
+                    legend_label=None, x_label="# of users",
                     y_label="Geweke Z-Score", linestyle='-.', color='red'):
         sequence = np.array(sequence)
         if not fig_ax:
@@ -56,7 +60,7 @@ class Evaluation(object):
 
     def draw_pdf(self, sequence, weights=None, fit_function=None, fig_ax=None, title=None,
                  legend_label=None, x_label="Counts", y_label="p(X)", style='b-', marker='o',
-                 x_scale='log', y_scale='log', xmin=1):
+                 x_scale='log', y_scale='log', xmin=1, linear_bins=False):
         sequence = np.array(sequence)
         if not weights is None:
             weights = np.array(weights)
@@ -67,9 +71,13 @@ class Evaluation(object):
             alpha = fit.power_law.alpha
             D = fit.power_law.D
             xmin = fit.xmin
+            if legend_label:
+                legend_label = legend_label + r"($\alpha$=%.2f)" % alpha
+            else:
+                legend_label = r"$\alpha$=%.2f" % alpha
             powerlaw_revised.plot_pdf(sequence, weights=weights, linewidth=linewidth, marker=marker,
                                       color=style[0], ax=fig_ax[1], x_scale=x_scale, y_scale=y_scale,
-                                      label=r"$\alpha$=%.2f, K-S distance=%.2f" % (alpha, D))
+                                      label=legend_label)
                               #label=r"%s ($\alpha$=%.2f)" % (legend_label, alpha))
             fit.power_law.plot_pdf(color=style[0], linestyle='--', ax=fig_ax[1])
         elif fit_function == 'lognormal':
@@ -82,7 +90,8 @@ class Evaluation(object):
             fit.lognormal.plot_pdf(color=style[0], linestyle='--', ax=fig_ax[1])
         else:
             powerlaw_revised.plot_pdf(sequence, weights=weights, linewidth=linewidth, marker=marker,
-                          x_scale=x_scale, y_scale=y_scale, color=style[0], ax=fig_ax[1], label=legend_label)
+                          x_scale=x_scale, y_scale=y_scale, color=style[0], ax=fig_ax[1], label=legend_label,
+                          linear_bins=linear_bins)
         fig_ax[1].set_xlabel(x_label, fontsize=label_fontsize)
         fig_ax[1].set_ylabel(y_label, fontsize=label_fontsize)
         fig_ax[1].tick_params(size=tick_fontsize)
@@ -169,18 +178,24 @@ class Evaluation(object):
         fig_ax[0].tight_layout()
         return fig_ax
 
-    def draw_pie(self, sequence):
+    def draw_pie(self, sequence, values=None):
         fig_ax = plt.subplots(figsize=figsize)  # print("Degree sequence", degree_sequence)
-        c = Counter(sequence)
-        x = np.array(list(c.keys()))
-        y = np.array(list(c.values()))
+        sequecne = np.array(sequence)
+        if not values is None:
+            values = np.array(values)
+            x = sequence
+            y = values
+        else:
+            c = Counter(sequence)
+            x = np.array(list(c.keys()))
+            y = np.array(list(c.values()))
         percent = 100. * y / y.sum()
         patches, texts = fig_ax[1].pie(y, startangle=90, radius=1.2)
-        labels = ['{0} - {1:1.2f} %'.format(i, j) for i, j in zip(x, percent)]
+        labels = ['{0} - {1:1.3f} %'.format(i, j) for i, j in zip(x, percent)]
         patches, labels, dummy = zip(*sorted(zip(patches, labels, y),
                                              key=lambda x: x[2],
                                              reverse=True))
-        fig_ax[1].legend(patches, labels, loc='center left', bbox_to_anchor=(-0.4, 1.),
+        fig_ax[1].legend(patches, labels, loc='upper left',
                          fontsize=legend_fontsize)
         return fig_ax
 
@@ -202,6 +217,16 @@ class Evaluation(object):
             kw["arrowprops"].update({"connectionstyle": connectionstyle})
             ax.annotate(labels[i], xy=(x, y), xytext=(1.35 * np.sign(x), 1.4 * y),
                         horizontalalignment=horizontalalignment, **kw)
+        return fig, ax
+    
+    def draw_bar(self, label, value):
+        label = np.array(label)
+        value = np.array(value)
+        fig, ax = plt.subplots(figsize=figsize)
+        ax.bar(label, value, align='center')
+        ax.set_xlabel('Province', fontsize=label_fontsize)
+        ax.set_ylabel('Percentage', fontsize=label_fontsize)
+        #ax.tick_params(fontproperties=zhfont)
         return fig, ax
 
     def cdf_n_percent(self, cdf, n):

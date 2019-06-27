@@ -2130,7 +2130,7 @@ def plot_cdf(data, weights=None, ax=None, survival=False,
     locations = []
     for per in percents:
         index = abs(CDF - per).argmin()
-        locations.append(index)
+        locations.append(bins[index])
     print("[CDF Stats] 50%%=%.2f, 80%%=%.2f, 99%%=%.2f, 99.9%%=%.2f"%tuple(locations))
     print("Max: %d, Min: %d" %(data.max(), data.min()))
     if not ax:

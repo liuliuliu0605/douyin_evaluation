@@ -16,22 +16,24 @@ def process_video(path):
                'uid': np.object, 'mid': np.object, 'cid': np.object, 'pid': np.object,
                'is_private': np.bool_, 'with_goods': np.bool_, 'is_delete': np.bool_,
                'allow_share': np.bool_, 'allow_comment': np.bool_}
-    video = pd.read_csv(path, delimiter='\t', low_memory=True, nrows=None, na_values='None')
+    video = pd.read_csv(path, delimiter='\t', na_values='None', quoting=3, dtype={'uid':np.object, 'aweme_id':np.object, 'group_id': np.object,'mid': np.object, 'cid': np.object, 'pid': np.object})
     total_num = video.shape[0]
-    video.columns = ['aweme_id','create_time','duration','rate','`desc`','is_ads','group_id','comment_count','digg_count','share_count','play_count','forward_count','download_count','cover','ratio','is_h265','share_url','uri','play_addr1','play_addr2','width','height','bit_rate1','bit_rate2','bit_rate3','uid','mid','cid','pid','is_private','with_goods','is_delete','allow_share','allow_comment']
+    #video.columns = ['aweme_id','create_time','duration','rate','`desc`','is_ads','group_id','comment_count','digg_count','share_count','play_count','forward_count','download_count','cover','ratio','is_h265','share_url','uri','play_addr1','play_addr2','width','height','bit_rate1','bit_rate2','bit_rate3','uid','mid','cid','pid','is_private','with_goods','is_delete','allow_share','allow_comment']
     video.drop(video[video.duration.isnull() | video.aweme_id.isnull() | video.uid.isnull()].index,
                inplace=True)
     filter_num = video.shape[0]
     basic_columns = ['aweme_id', 'create_time', 'duration', 'rate', 'group_id', 'is_ads',
                      'comment_count', 'digg_count', 'share_count', 'play_count', 'forward_count',
-                     'download_count','ratio', 'is_h265','width', 'height', 'bit_rate1',
+                     'download_count','cover', 'uri', 'ratio', 'is_h265','width', 'height', 'bit_rate1',
                      'bit_rate2', 'bit_rate3','uid', 'mid', 'cid', 'pid','is_private', 'with_goods',
-                     'is_delete', 'allow_share', 'allow_comment']
-    extend_columns = ['aweme_id', '`desc`', 'cover', 'share_url', 'uri', 'play_addr1', 'play_addr2']
-    basic_columns.extend(['duration', 'width', 'height', 'is_h265'])
+                     'is_delete', 'allow_share', 'allow_comment', '`desc`']
+    extend_columns = ['aweme_id', '`desc`', 'share_url']
+    #basic_columns.extend(['duration', 'width', 'height', 'is_h265'])
     video_basic = video[basic_columns]
     video_extend = video[extend_columns]
-    video_extend = video_extend.rename(columns={'`desc`': 'description'})
+    #video_extend = video_extend.rename(columns={'`desc`': 'description'})
+    video_basic = video_basic.rename(columns={'`desc`': 'description'})
+    video_basic['description'] = video_basic.description.str.replace('"','')
     print("[Video] total:%d, filter:%d" % (total_num, filter_num))
     return video_basic, video_extend
 
@@ -43,7 +45,7 @@ def join_individual(video_basic_path, user_detail_path):
     :return
     dataframe video_detail with weight column added
     '''
-    data_type = {'uid': np.object}
+    data_type = {'uid': np.object, 'aweme_id':np.object, 'group_id': np.object, 'mid': np.object, 'cid': np.object, 'pid': np.object}
     video = pd.read_csv(video_basic_path, delimiter='\t', dtype=data_type)
     video.set_index('uid', inplace=True)
     user_detail = pd.read_csv(user_detail_path, delimiter='\t', dtype=data_type)
@@ -56,34 +58,40 @@ def join_individual(video_basic_path, user_detail_path):
 def concate_all(path_list):
     print("Merging All...")
     all_video = pd.DataFrame()
-    data_type = {'aweme_id': np.object}
+    data_type = {'uid': np.object, 'aweme_id':np.object, 'group_id': np.object, 'mid': np.object, 'cid': np.object, 'pid': np.object}
     for path in path_list:
+        print("Add %s" % path)
         part_video = pd.read_csv(path, delimiter='\t', dtype=data_type)
+        print(part_video.describe())
         all_video = pd.concat([all_video, part_video], axis=0)
     groups = all_video.groupby(['aweme_id'], as_index=True)
     weight = groups['weight'].mean()
     #weight = weight/weight.sum()
-    avg_coloumns = groups[['comment_count',	'digg_count', 'share_count', 'play_count',
-                           'forward_count',	'download_count']].mean().astype('int32')
-    first_columns = groups[['uid', 'create_time', 'rate', 'is_ads', 'group_id',
+    avg_coloumns = groups[['comment_count', 'digg_count', 'share_count', 'play_count',
+                           'forward_count', 'download_count']].mean().astype(np.int64)
+    first_columns = groups[['uid', 'create_time', 'rate', 'is_ads', 'group_id', 'cover', 'uri', 'ratio',
                             'bit_rate1', 'bit_rate2', 'bit_rate3', 'mid', 'cid', 'pid', 'is_private',
                             'with_goods', 'is_delete', 'allow_share', 'allow_comment', 'duration',
-                            'width', 'height', 'is_h265']].first()
+                            'width', 'height', 'is_h265','description']].first()
     all_video = pd.concat([weight, first_columns, avg_coloumns], axis=1)
+    print("[All Video] %d, %d"%all_video.shape)
     return all_video
 
 if __name__=='__main__':
     start = time.time()
     current_path = os.getcwd()
-    pd.set_option('display.max_columns', 30)
+    pd.set_option('display.max_columns', 50)
     pd.set_option('display.width',100)
-    video_dir = os.path.join(current_path, 'dataset', 'douyin', 'video2')
+    video_dir = os.path.join(current_path, 'dataset', 'douyin', 'video')
     user_dir = os.path.join(current_path, 'dataset', 'douyin', 'user')
     video_basic_path_list = []
     user_detail_path_list = []
     video_detail_path_list = []
+    sub_dir_list = []
 
-    for sub_dir in os.listdir(video_dir):
+    print("Generate basic and extend video...")
+    #for sub_dir in os.listdir(video_dir):
+    for sub_dir in ['data_%d'%i for i in range(1,12)]:
         print("Routine %s" % sub_dir)
         video_path = os.path.join(video_dir, sub_dir, 'video_post.txt')
         video_basic, video_extend = process_video(video_path)
@@ -94,8 +102,13 @@ if __name__=='__main__':
         video_basic_path_list.append(video_basic_path)
         user_detail_path = os.path.join(user_dir, sub_dir, 'output_user_detail.txt')
         user_detail_path_list.append(user_detail_path)
+        sub_dir_list.append(sub_dir)
 
-    for video_path, user_path in zip(video_basic_path_list, user_detail_path_list):
+    print("Join basic video with user...")
+    for video_path, user_path, sub_dir in zip(video_basic_path_list, user_detail_path_list, sub_dir_list):
+        print("Routine %s" % sub_dir)
+        print(video_path)
+        print(user_path)
         video_detail = join_individual(video_path, user_path)
         video_detail_path = os.path.join(video_dir, sub_dir, 'video_detail.txt')
         video_detail.to_csv(video_detail_path, sep='\t')
@@ -106,7 +119,6 @@ if __name__=='__main__':
     print('Total weights: %.f' % video_detail_all.weight.sum())
     video_all_path = os.path.join(video_dir, 'video_detail_all.txt')
     video_detail_all.to_csv(video_all_path, sep='\t')
-
     end = time.time()
     print("Time: %d seconds" % (end-start) )
 
