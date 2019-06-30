@@ -507,7 +507,7 @@ class Fit(object):
         return plot_cdf(data, ax=ax, survival=survival, **kwargs)
 
     def plot_pdf(self, ax=None, original_data=False,
-                 linear_bins=False, **kwargs):
+                 linear_bins=False, density=False, **kwargs):
         """
         Plots the probability density function (PDF) or the data to a new figure
         or to axis ax if provided.
@@ -533,7 +533,7 @@ class Fit(object):
             data = self.data_original
         else:
             data = self.data
-        return plot_pdf(data, ax=ax, linear_bins=linear_bins, **kwargs)
+        return plot_pdf(data, ax=ax, linear_bins=linear_bins, density=density, **kwargs)
 
 class Distribution(object):
     """
@@ -2003,7 +2003,7 @@ def trim_to_range(data, weights=None, xmin=None, xmax=None, **kwargs):
     else:
         return data, weights
 
-def pdf(data, weights=None, xmin=None, xmax=None, linear_bins=False, **kwargs):
+def pdf(data, weights=None, xmin=None, xmax=None, linear_bins=False, density=True,**kwargs):
     """
     Returns the probability density function (normalized histogram) of the
     data.
@@ -2056,11 +2056,11 @@ def pdf(data, weights=None, xmin=None, xmax=None, linear_bins=False, **kwargs):
         bins = unique(bins)
 
     if xmin<1: #Needed to include also data x<1 in pdf.
-        hist, edges = histogram(data/xmin, bins, density=True, weights=weights)
+        hist, edges = histogram(data/xmin, bins, density=density, weights=weights)
         edges=edges*xmin # transform result back to original
         hist=hist/xmin # rescale hist, so that np.sum(hist*edges)==1
     else:
-        hist, edges = histogram(data, bins, density=True, weights=weights)
+        hist, edges = histogram(data, bins, density=density, weights=weights)
 
     return edges, hist
 
@@ -2144,7 +2144,7 @@ def plot_cdf(data, weights=None, ax=None, survival=False,
     return ax
 
 def plot_pdf(data, weights=None, ax=None, linear_bins=False,
-             x_scale='log', y_scale='log', **kwargs):
+             x_scale='log', y_scale='log', density=True, **kwargs):
     """
     Plots the probability density function (PDF) to a new figure or to axis ax
     if provided.
@@ -2163,7 +2163,7 @@ def plot_pdf(data, weights=None, ax=None, linear_bins=False,
     ax : matplotlib axis
         The axis to which the plot was made.
     """
-    edges, hist = pdf(data, weights, linear_bins=linear_bins, **kwargs)
+    edges, hist = pdf(data, weights, linear_bins=linear_bins, density=density, **kwargs)
     bin_centers = (edges[1:]+edges[:-1])/2.0
     from numpy import nan
     hist[hist==0] = nan
