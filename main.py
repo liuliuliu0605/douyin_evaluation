@@ -3,6 +3,7 @@
 from evaluation import Evaluation, figsize
 from matplotlib import pyplot as plt
 from datetime import timedelta
+from statsmodels.stats.weightstats import DescrStatsW
 
 import pandas as pd
 import os
@@ -18,7 +19,7 @@ user_detail_file_name = 'user_detail_all.txt'
 
 TYPE = '.png'
 styles = ['b-', 'y--', 'g:', 'r-.']
-markers = ['o', '+', '^', '*']
+markers = ['o', 'x', '^', '*']
 color_list = ['peru', 'dodgerblue', 'brown', 'dimgray', 'springgreen',
               'fuchsia', 'greenyellow', 'hotpink', 'cyan', 'red',
               'grey', 'slateblue']
@@ -91,6 +92,11 @@ print("*favoriting pdf")
 fig, ax = plot_pdf('favoriting_count', label=None, x_label='# of liked videos')
 fig.savefig(os.path.join(draw_dir, 'pdf_favoriting'+TYPE))
 
+## aweme_count
+print("*aweme_count pdf")
+fig, ax = plot_pdf('aweme_count', label=None, x_label='# of posted videos')
+fig.savefig(os.path.join(draw_dir, 'pdf_aweme_count'+TYPE))
+
 print("*user born year hist")
 #fig, ax = plot_pdf_video('duration', x_label='Video duration(seconds)', fit_function=None, x_scale='linear', y_scale='linear', linear_bins=True)
 fig, ax = plot_pdf('born_year', x_label="User's year of birth", fit_function=None)
@@ -101,13 +107,14 @@ fig.savefig(os.path.join(draw_dir, 'pdf_user_born_year'+TYPE))
 # Plot cdf
 
 def plot_cdf(col_name='follower_count',label=None, x_label='# of followers', y_label='CDF',
-             fig_ax=None, condition=None, style='y--', marker='+'):
+             fig_ax=None, condition=None, style='y--', marker='+', x_scale='log', y_scale='linear'):
     if condition:
         sequence = user_detail[user_detail[condition[0]] == condition[1]][[col_name, 'weight']]
     else:
         sequence = user_detail[[col_name, 'weight']]
+    sequence = sequence[~sequence[col_name].isnull()]
     fig, ax = evaluation.draw_cdf(sequence[col_name], weights=sequence['weight'],
-                                  fig_ax=fig_ax, y_label=y_label, x_label=x_label, y_scale='linear',
+                                  fig_ax=fig_ax, y_label=y_label, x_label=x_label, y_scale=y_scale, x_scale=x_scale,
                                   style=style, marker=marker, legend_label=label)
     return fig, ax
 
@@ -124,31 +131,40 @@ fig.savefig(os.path.join(draw_dir, 'cdf_following'+TYPE))
 ## aweme cdf
 print("*aweme cdf")
 fig, ax = plot_cdf('aweme_count', label=None, x_label='# of posted videos')
-fig.savefig(os.path.join(draw_dir, 'cdf_aweme'+TYPE))
+fig.savefig(os.path.join(draw_dir, 'cdf_aweme_count'+TYPE))
 
 ## favouriting cdf
 print("*favoriting cdf")
 fig, ax = plot_cdf('favoriting_count', label=None, x_label='# of liked videos')
 fig.savefig(os.path.join(draw_dir, 'cdf_favoriting'+TYPE))
 
+print("*user born year hist cdf")
+#fig, ax = plot_pdf_video('duration', x_label='Video duration(seconds)', fit_function=None, x_scale='linear', y_scale='linear', linear_bins=True)
+fig, ax = plot_cdf('born_year', label=None, x_label="User's year of birth", x_scale='linear')
+ax.set_xlim(1900, 2020)
+#ax.set_xticks(range(0, 65, 5))
+fig.savefig(os.path.join(draw_dir, 'cdf_user_born_year'+TYPE))
+
 
 # relation between followers and followings
 print("*followers followings relation")
 followers = user_detail.follower_count
 followings = user_detail.following_count
+d = DescrStatsW(user_detail[['follower_count', 'following_count']], weights=user_detail['weight'])
+print(d.corrcoef)
 weight = user_detail.weight
 fig, ax = evaluation.draw_relation(followers, followings, weight,
                                     x_label="# of followers", y_label="# of followings",
                                     marker='o')
 fig.savefig(os.path.join(draw_dir, 'followers_followings' + TYPE))
 
+plt.cla()
 
 print("user province pdf")
 #location_freq = user_detail.groupby('province', as_index=False)['weight'].sum().sort_values(by='weight', ascending=False)
 #location_freq['weight'] = location_freq.weight/location_freq.weight.sum()*100
 #fig, ax = evaluation.draw_bar(location_freq['province'][:10], location_freq['weight'][:10]) 
 #fig.savefig(os.path.join(draw_dir, 'bar_user_province'+TYPE))
-
 
 # video analysis
 data_type = {'uid': np.object}
@@ -180,49 +196,72 @@ print(video_detail.describe())
 # Plot pdf
 def plot_pdf_video(col_name='digg_count',label=None, x_label='# of likes', y_label='p(X)',
              fig_ax=None, condition=None, style='y--', marker='+', fit_function='power_law',
-             x_scale='log', y_scale='log', linear_bins=False, density=True):
+             x_scale='log', y_scale='log', xmax=None, density=True):
     if condition:
-        if fit_function:
-            sequence = video_detail[(video_detail[condition[0]] >= condition[1]) & (video_detail[condition[0]] <= condition[2])][video_detail[col_name] > 0][[col_name, 'weight']]
+        if isinstance(condition, str):
+            sequence = video_detail[~video_detail[condition].isnull()][[col_name, 'weight']]
         else:
-            sequence = video_detail[video_detail[condition[0]] >= condition[1]][[col_name, 'weight']]
-        print("!Special filter: %d" % sequence.shape[0])
+            sequence = video_detail[(video_detail[condition[0]] >= condition[1]) & (video_detail[condition[0]] <= condition[2])][[col_name, 'weight']]
+        print("<Condition filtering>: %d" % sequence.shape[0])
     else:
-        if fit_function:
-            sequence = video_detail[video_detail[col_name] > 0][[col_name, 'weight']]
-        else:
-            sequence = video_detail[[col_name, 'weight']]
+        sequence = video_detail[[col_name, 'weight']]
+    if fit_function:
+        sequence = sequence[sequence[col_name] > 0]
+        print("<Fit filtering>: %d" % sequence.shape[0])
     sequence = sequence[~sequence[col_name].isnull()]
+    print("<%s not None>: %d" % (col_name, sequence.shape[0]))
     fig, ax = evaluation.draw_pdf(sequence[col_name], weights=sequence['weight'], fig_ax=fig_ax,
                                   fit_function=fit_function, y_label=y_label, x_label=x_label,
-                                  style=style, marker=marker, legend_label=label, xmin=1,
-                                  x_scale=x_scale, y_scale=y_scale, linear_bins=linear_bins, density=density)
+                                  style=style, marker=marker, legend_label=label, xmin=1, xmax=xmax,
+                                  x_scale=x_scale, y_scale=y_scale, density=density)
     return fig, ax
 
 # Plot cdf
 def plot_cdf_video(col_name='digg_count',label=None, x_label='# of likes', y_label='CDF',
              fig_ax=None, condition=None, style='y--', marker='+', x_scale='log', y_scale='linear'):
     if condition:
-        sequence = video_detail[(video_detail[condition[0]] >= condition[1]) & (video_detail[condition[0]] <= condition[2])][[col_name, 'weight']]
-        print("!Special filter: %d" % sequence.shape[0])
+        if isinstance(condition, str):
+            sequence = video_detail[~video_detail[condition].isnull()][[col_name, 'weight']]
+        else:
+            sequence = video_detail[(video_detail[condition[0]] >= condition[1]) & (video_detail[condition[0]] <= condition[2])][[col_name, 'weight']]
+        print("<Condition filtering>: %d" % sequence.shape[0])
     else:
         sequence = video_detail[[col_name, 'weight']]
-        #print(sequence.iloc[:10,:])
     sequence = sequence[~sequence[col_name].isnull()]
-    valid_size = sequence.shape[0]
-    print("%s not null: %d"%(col_name, valid_size))
+    print("<%s not None>: %d" % (col_name, sequence.shape[0]))
     fig, ax = evaluation.draw_cdf(sequence[col_name], weights=sequence['weight'],
                                   fig_ax=fig_ax, y_label=y_label, x_label=x_label, x_scale=x_scale,
                                   y_scale=y_scale, style=style, marker=marker, legend_label=label)
     return fig, ax
 
+## relation between video age and pop
+video_age = video_detail.days_last
+weight = video_detail.weight
+fig, ax = evaluation.draw_relation(video_age, video_detail.digg_count, weight,
+                                  x_label="Video age(days)", y_label="# of likes",
+                                  marker='o')
+fig.savefig(os.path.join(draw_dir, 'videoage_likes' + TYPE))
+d = DescrStatsW(video_detail[['days_last', 'digg_count']], weights=video_detail['weight'])
+print(d.corrcoef)
 
-## digg_count pdf
+fig, ax = evaluation.draw_relation(video_age, video_detail.comment_count, weight,
+                                  x_label="Video age(days)", y_label="# of comments",
+                                  marker='o')
+d = DescrStatsW(video_detail[['days_last', 'comment_count']], weights=video_detail['weight'])
+fig.savefig(os.path.join(draw_dir, 'videoage_comments' + TYPE))
+print(d.corrcoef)
+
+fig, ax = evaluation.draw_relation(video_age, video_detail.share_count, weight,
+                                  x_label="Video age(days)", y_label="# of shares",
+                                  marker='o')
+d = DescrStatsW(video_detail[['days_last', 'share_count']], weights=video_detail['weight'])
+fig.savefig(os.path.join(draw_dir, 'videoage_shares' + TYPE))
+print(d.corrcoef)
+
 print("*digg_count|comment_count|share_count pdf")
 fig, ax = plot_pdf_video('digg_count', label='like',style=styles[0], marker=markers[0])
-fig, ax = plot_pdf_video('comment_count', label='comment', style=styles[1], marker=markers[1], fig_ax = (fig, ax))
-fig, ax = plot_pdf_video('share_count', x_label='Video popularity', label='share', style=styles[2], marker=markers[2], fig_ax = (fig, ax))
-
+fig, ax = plot_pdf_video('comment_count', label='comment', style=styles[1], marker=markers[1], fig_ax=(fig, ax))
+fig, ax = plot_pdf_video('share_count', x_label='Video popularity', label='share', style=styles[2], marker=markers[2], fig_ax=(fig, ax))
 fig.savefig(os.path.join(draw_dir, 'pdf_video_pop'+TYPE))
 
 print("*digg_count|comment_count|share_count cdf")
@@ -231,10 +270,28 @@ fig, ax = plot_cdf_video('comment_count', label='comment', style=styles[1], mark
 fig, ax = plot_cdf_video('share_count', x_label='Video popularity', label='share', style=styles[2], marker=markers[2], fig_ax = (fig, ax))
 fig.savefig(os.path.join(draw_dir, 'cdf_video_pop'+TYPE))
 
+print("*digg_count|comment_count|share_count cdf(with bitrate2)")
+fig, ax = plot_cdf_video('digg_count', label='like',style=styles[0], marker=markers[0],
+                         condition='bit_rate2')
+fig, ax = plot_cdf_video('comment_count', label='comment', style=styles[1], marker=markers[1],
+                         fig_ax=(fig, ax), condition='bit_rate2')
+fig, ax = plot_cdf_video('share_count', x_label='Video popularity', label='share', style=styles[2],
+                         marker=markers[2], fig_ax=(fig, ax), condition='bit_rate2')
+fig.savefig(os.path.join(draw_dir, 'cdf_video_pop_with_bitrate2'+TYPE))
+
+print("*digg_count|comment_count|share_count cdf(with bitrate3)")
+fig, ax = plot_cdf_video('digg_count', label='like',style=styles[0], marker=markers[0],
+                         condition='bit_rate3')
+fig, ax = plot_cdf_video('comment_count', label='comment', style=styles[1], marker=markers[1],
+                         fig_ax=(fig, ax), condition='bit_rate3')
+fig, ax = plot_cdf_video('share_count', x_label='Video popularity', label='share', style=styles[2],
+                         marker=markers[2], fig_ax=(fig, ax), condition='bit_rate3')
+fig.savefig(os.path.join(draw_dir, 'cdf_video_pop_with_bitrate3'+TYPE))
+
 print("*video duration hist")
-#fig, ax = plot_pdf_video('duration', x_label='Video duration(seconds)', fit_function=None, x_scale='linear', y_scale='linear', linear_bins=True)
-fig, ax = plot_pdf_video('duration', x_label='Video duration(seconds)', fit_function=None)
-ax.set_xlim(0, 62)
+fig, ax = plot_pdf_video('duration', x_label='Video duration(seconds)',
+                         fit_function=None, xmax=60)
+#ax.set_xlim(0, 62)
 ax.set_xticks(range(0, 65, 5))
 fig.savefig(os.path.join(draw_dir, 'pdf_video_duration'+TYPE))
 
@@ -242,8 +299,8 @@ print("*video(created after Apr. 23rd) duration hist")
 #fig, ax = plot_pdf_video('duration', x_label='Video duration(seconds)', fit_function=None, x_scale='linear', y_scale='linear', linear_bins=True)
 new_date = pd.datetime(2019, 4, 23).date()
 fig, ax = plot_pdf_video('duration', x_label='Video duration(seconds)', fit_function=None,
-                         condition=('date', new_date, base_date))
-ax.set_xlim(0, 62)
+                         condition=('date', new_date, base_date), xmax=61)
+#ax.set_xlim(0, 62)
 ax.set_xticks(range(0, 65, 5))
 fig.savefig(os.path.join(draw_dir, 'pdf_video_duration_latest'+TYPE))
 
@@ -257,12 +314,17 @@ fig, ax = plot_cdf_video('duration', x_label='Video duration(seconds)', style=st
 fig.savefig(os.path.join(draw_dir, 'cdf_video_duration_latest'+TYPE))
 
 print("*video bitrate hist")
-#fig, ax = plot_pdf_video('duration', x_label='Video duration(seconds)', fit_function=None, x_scale='linear', y_scale='linear', linear_bins=True)
-fig, ax = plot_pdf_video('bit_rate1', fit_function=None)
-fig, ax = plot_pdf_video('bit_rate2', fit_function=None, fig_ax=(fig, ax))
-fig, ax = plot_pdf_video('bit_rate3', fit_function=None, fig_ax=(fig, ax), x_label='Video bitrates(kbps)')
-ax.set_xlim(0, 500)
-fig.savefig(os.path.join(draw_dir, 'pdf_video_bitrate'+TYPE))
+#fig, ax = plot_pdf_video('duration', x_label='Video duration(kbps)', fit_function=None, x_scale='linear', y_scale='linear', linear_bins=True)
+fig, ax = plot_pdf_video('bit_rate1', x_label='Video bitrates(kbps)',
+                         fit_function=None, xmax=3600)
+fig.savefig(os.path.join(draw_dir, 'pdf_video_bitrate1'+TYPE))
+fig, ax = plot_pdf_video('bit_rate2', fit_function=None, #fig_ax=(fig, ax),
+                         x_label = 'Video bitrates(kbps)', xmax=3600)
+fig.savefig(os.path.join(draw_dir, 'pdf_video_bitrate2'+TYPE))
+fig, ax = plot_pdf_video('bit_rate3', fit_function=None, #fig_ax=(fig, ax),
+                         x_label='Video bitrates(kbps)', xmax=1100)
+#ax.set_xlim(0, 500)
+fig.savefig(os.path.join(draw_dir, 'pdf_video_bitrate3'+TYPE))
 
 print("*video bitrate cdf")
 fig, ax = plot_cdf_video('bit_rate1', label='first bitrate', style=styles[0], marker=markers[0])
@@ -273,7 +335,8 @@ fig.savefig(os.path.join(draw_dir, 'cdf_video_bitrate'+TYPE))
 print("*video productivity hist")
 print(base_date, online_date)
 #fig, ax = plot_pdf_video('last_day', x_label='Recently created(days)', fit_function=None, x_scale='linear', y_scale='linear', linear_bins=True)
-fig, ax = plot_pdf_video('days_last', x_label='Recently created(days)', fit_function=None)
+fig, ax = plot_pdf_video('days_last', x_label='Recently created(days)',
+                         fit_function=None, xmax=None)
 #fig, ax = plot_pdf_video('days_after', x_label='Created date', fit_function=None)
 #time_ranges = range(0, video_detail.days_after.max()+1, 100)
 #plt.xticks(time_ranges,

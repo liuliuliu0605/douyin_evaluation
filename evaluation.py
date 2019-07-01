@@ -14,8 +14,8 @@ from pylab import mpl
 
 zhfont= mpl.font_manager.FontProperties(fname='/usr/share/fonts/truetype/arphic/ukai.ttc')
 title_fontsize = 20
-label_fontsize = 20
-#tick_fontsize = 18
+label_fontsize = 16
+tick_fontsize = 'large'#16
 legend_fontsize = 14
 figsize = None#(8, 6)
 linewidth = 2.0
@@ -51,8 +51,8 @@ class Evaluation(object):
             #score = geweke(sequence[:i], intervals=2)[:, 1].mean()
             z_scroes.append(score)
         fig_ax[1].plot(iterations, z_scroes,linestyle=linestyle, color=color,
-                       label=legend_label, linewidth=linewidth)
-        fig_ax[1].tick_params(axis='both', labelsize='large')
+                       label=legend_label, linewidth=linewidth, markerfacecolor='none')
+        fig_ax[1].tick_params(axis='both', labelsize=tick_fontsize)
         fig_ax[1].set_xlabel(x_label, fontsize=label_fontsize)
         fig_ax[1].set_ylabel(y_label, fontsize=label_fontsize)
         if legend_label:
@@ -62,7 +62,7 @@ class Evaluation(object):
 
     def draw_pdf(self, sequence, weights=None, fit_function=None, fig_ax=None, title=None,
                  legend_label=None, x_label="Counts", y_label="p(X)", style='b-', marker='o',
-                 x_scale='log', y_scale='log', xmin=1, linear_bins=False, density=True):
+                 x_scale='log', y_scale='log', xmin=1, xmax=None, density=True):
         sequence = np.array(sequence)
         if not weights is None:
             weights = np.array(weights)
@@ -79,7 +79,7 @@ class Evaluation(object):
                 legend_label = r"$\alpha$=%.2f" % alpha
             powerlaw_revised.plot_pdf(sequence, weights=weights, linewidth=linewidth, marker=marker,
                                       color=style[0], ax=fig_ax[1], x_scale=x_scale, y_scale=y_scale,
-                                      label=legend_label, density=density)
+                                      label=legend_label, density=density, markerfacecolor='none')
             if density:
                 fit.power_law.plot_pdf(color=style[0], linestyle='--', ax=fig_ax[1])
         elif fit_function == 'lognormal':
@@ -87,21 +87,24 @@ class Evaluation(object):
             mu = fit.lognormal.mu
             sigma = fit.lognormal.sigma
             powerlaw_revised.plot_pdf(sequence, weights=weights, linewidth=linewidth, marker=marker,
-                               color=style[0], ax=fig_ax[1], x_scale=x_scale, y_scale=y_scale,
+                               color=style[0], ax=fig_ax[1], x_scale=x_scale, y_scale=y_scale, markerfacecolor='none',
                                label=r"%s ($\mu$=%.2f, $\sigma$=%.2f)" % (legend_label, mu, sigma))
             fit.lognormal.plot_pdf(color=style[0], linestyle='--', ax=fig_ax[1])
         else:
             #powerlaw_revised.plot_pdf(sequence, weights=weights, linewidth=linewidth, marker=marker,
             #              x_scale=x_scale, y_scale=y_scale, color=style[0], ax=fig_ax[1], label=legend_label,
             #              linear_bins=linear_bins)
-            x_min = sequence.min()
-            x_max = sequence.max()
-            bins = np.arange(x_min, x_max+1)
+            left = sequence.min()
+            right = xmax if xmax else sequence.max()
+            step = 1
+            #if right - left <= 100:
+            #    step = 0.1
+            bins = np.arange(left, right, step)
             fig_ax[1].hist(sequence, bins=bins, weights=weights, density=1)
 
         fig_ax[1].set_xlabel(x_label, fontsize=label_fontsize)
         fig_ax[1].set_ylabel(y_label, fontsize=label_fontsize)
-        #fig_ax[1].tick_params(axis='both', labelsize='large')
+        fig_ax[1].tick_params(axis='both', labelsize=tick_fontsize)
         if legend_label:
             fig_ax[1].legend(fontsize=legend_fontsize)
         if title:
@@ -119,7 +122,7 @@ class Evaluation(object):
             fig_ax = plt.subplots(figsize=figsize)
         #import powerlaw
         powerlaw_revised.plot_cdf(sequence, weights=weights, linewidth=linewidth, marker=marker,
-                      color=style[0], ax=fig_ax[1], label=legend_label,
+                      color=style[0], ax=fig_ax[1], label=legend_label, markerfacecolor='none',
                       x_scale=x_scale, y_scale=y_scale)
         fig_ax[1].grid(True)
         if title:
@@ -130,7 +133,7 @@ class Evaluation(object):
         if legend_label:
             fig_ax[1].legend(fontsize=legend_fontsize)
         #fig_ax[1].legend(fontsize=legend_fontsize, loc='lower right')
-        fig_ax[1].tick_params(axis='both', labelsize='large')
+        fig_ax[1].tick_params(axis='both', labelsize=tick_fontsize)
         fig_ax[0].tight_layout()
         return fig_ax
 
@@ -148,7 +151,7 @@ class Evaluation(object):
                 ax.text(x + 0.05, y + 0.05, '%d' % y, ha='center', va='bottom')
         ax.set_xlabel('Iterations', fontsize=label_fontsize)
         ax.set_ylabel('# of Unique Samples', fontsize=label_fontsize)
-        ax.tick_params(axis='both', labelsize='large')
+        ax.tick_params(axis='both', labelsize=tick_fontsize)
         #ax.set_title('Unique Samples of Different Iterations', fontsize=title_fontsize)
         ax.set_xticks(index)
         ax.set_xticklabels(n_iterations)
@@ -174,7 +177,7 @@ class Evaluation(object):
         fig_ax[0].colorbar(ax)
         fig_ax[1].set_xlabel(x_label, fontsize=label_fontsize)
         fig_ax[1].set_ylabel(y_label, fontsize=label_fontsize)
-        fig_ax[1].tick_params(axis='both', labelsize='large')
+        fig_ax[1].tick_params(axis='both', labelsize=tick_fontsize)
         #fig_ax[1].set_ylim(bottom=1, top=5000)
         #fig_ax[1].set_xlim(left=1, right=40000)
         fig_ax[1].set_yscale('log', basey=10)
